@@ -1,0 +1,49 @@
+# =============================================================================
+# Attendance Management System - .gitignore
+# =============================================================================
+
+# Build outputs
+target/
+*.jar
+*.class
+
+# Local environment / secrets (never commit)
+.env
+.env.local
+*.env
+app.pid
+app.out.log
+app.err.log
+setup.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+ehcache.xml
+
+# Logs
+*.log
+logs/
+
+# Database files (do not commit database files or dumps)
+*.mdb
+*.accdb
+*.sql.data
+database/*.data
+
+# Temporary
+*.tmp
+*.bak
+
+# Maven
+.mvn/

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments :: head(~{title})">Forbidden</head>
+<body th:attr="data-page='403'">
+    <th:block th:replace="fragments :: sidebar"></th:block>
+    <th:block th:replace="fragments :: topbar"></th:block>
+    <th:block th:replace="fragments :: scripts"></th:block>
+    <div class="main">
+        <div class="page" style="max-width:500px;margin-top:2rem;">
+            <div class="card">
+                <h1 style="color:var(--danger);">403 - Forbidden</h1>
+                <p>You do not have permission to access this page.</p>
+                <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

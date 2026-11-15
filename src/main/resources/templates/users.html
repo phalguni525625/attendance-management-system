@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments :: head(~{title})">Users</head>
+<body th:attr="data-page='users'" data-is-admin="true">
+    <th:block th:replace="fragments :: sidebar"></th:block>
+    <th:block th:replace="fragments :: topbar"></th:block>
+    <th:block th:replace="fragments :: scripts"></th:block>
+    <div class="main">
+        <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
+            <div class="page-header">
+                <h1 class="page-title">User Management</h1>
+                <p class="page-subtitle">Administrator and faculty accounts (Admin only)</p>
+            </div>
+        </header>
+        <div class="page">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="users-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

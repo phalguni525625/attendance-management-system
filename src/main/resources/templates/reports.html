@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments :: head(~{title})">Reports</head>
+<body th:attr="data-page='reports'">
+    <th:block th:replace="fragments :: sidebar"></th:block>
+    <th:block th:replace="fragments :: topbar"></th:block>
+    <th:block th:replace="fragments :: scripts"></th:block>
+    <div class="main">
+        <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
+            <div class="page-header">
+                <h1 class="page-title">Attendance Reports</h1>
+                <p class="page-subtitle">Student-wise reports, defaulters, and CSV export</p>
+            </div>
+        </header>
+        <div class="page">
+            <div id="alert-reports"></div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Student ID</label>
+                    <input type="text" id="rep-student-id" list="rep-student-names" placeholder="Type or select student ID"/>
+                    <datalist id="rep-student-names"></datalist>
+                </div>
+                <div class="form-group" style="align-self:end;">
+                    <button class="btn btn-primary" id="btn-generate-report">Generate Report</button>
+                    <button class="btn btn-outline" id="btn-export-report">Export CSV</button>
+                </div>
+            </div>
+            <div id="report-result"></div>
+
+            <div class="card" style="margin-top:1.5rem;">
+                <div style="font-weight:700;margin-bottom:0.75rem;">Defaulters (below attendance threshold)</div>
+                <button class="btn btn-sm btn-outline" id="btn-defaulters" style="margin-bottom:0.75rem;">Refresh Defaulters</button>
+                <div id="defaulters-result"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments :: head(~{title})">Subjects</head>
+<body th:attr="data-page='subjects'">
+    <th:block th:replace="fragments :: sidebar"></th:block>
+    <th:block th:replace="fragments :: topbar"></th:block>
+    <th:block th:replace="fragments :: scripts"></th:block>
+    <div class="main">
+        <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
+            <div class="page-header">
+                <h1 class="page-title">Subject Management</h1>
+                <p class="page-subtitle">Manage subjects and link them to courses and semesters</p>
+            </div>
+        </header>
+        <div class="page">
+            <div id="alert-subjects"></div>
+            <div class="toolbar">
+                <button class="btn btn-primary" id="btn-add-subject">&#128224; Add Subject</button>
+                <span data-admin-only="true" style="font-size:0.85rem;color:var(--text-muted);">Admin only</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Code</th><th>Name</th><th>Course</th><th>Semester</th><th>Actions</th></tr></thead>
+                    <tbody id="subjects-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="subject-modal">
+        <div class="modal">
+            <div class="modal-header"><div class="modal-title" id="subject-modal-title">Add Subject</div><button class="modal-close">&#215;</button></div>
+            <div class="modal-body">
+                <form id="subject-form">
+                    <div id="alert-subject-modal" style="margin-bottom:1rem;"></div>
+                    <div class="form-group"><label>Subject Code</label><input id="sub-code" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Subject Name</label><input id="sub-name" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Course Code</label><input id="sub-course" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Semester</label><input id="sub-semester" type="text" required/><div class="error-msg"></div></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="subject-modal-cancel">Cancel</button>
+                <button class="btn btn-danger" id="subject-delete-btn" style="display:none;">Delete</button>
+                <button class="btn btn-primary" type="submit" form="subject-form">Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

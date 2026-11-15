@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments :: head(~{title})">Students</head>
+<body th:attr="data-page='students'">
+    <th:block th:replace="fragments :: sidebar"></th:block>
+    <th:block th:replace="fragments :: topbar"></th:block>
+    <th:block th:replace="fragments :: scripts"></th:block>
+    <div class="main">
+        <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
+            <div class="page-header">
+                <h1 class="page-title">Student Management</h1>
+                <p class="page-subtitle">Add, edit, and search students</p>
+            </div>
+        </header>
+        <div class="page">
+            <div id="alert-students"></div>
+            <div class="toolbar">
+                <div class="search-box">
+                    <input type="text" id="student-search" placeholder="Search by name or student ID"/>
+                </div>
+                <select id="filter-course" placeholder="Course"><option value="">All courses</option></select>
+                <select id="filter-semester"><option value="">All semesters</option></select>
+                <select id="filter-section"><option value="">All sections</option></select>
+                <button class="btn btn-primary" id="btn-add-student">&#128224; Add Student</button>
+                <span data-admin-only="true" style="font-size:0.85rem;color:var(--text-muted);">Admin only: add/edit/delete</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Course</th><th>Semester</th><th>Section</th><th>Actions</th></tr></thead>
+                    <tbody id="students-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="student-modal">
+        <div class="modal">
+            <div class="modal-header"><div class="modal-title" id="modal-title">Add Student</div><button class="modal-close" id="modal-cancel">&#215;</button></div>
+            <div class="modal-body">
+                <form id="student-form">
+                    <div id="alert-student-modal" style="margin-bottom:1rem;"></div>
+                    <div class="form-group"><label>Student ID</label><input id="s-student-id" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Name</label><input id="s-name" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Email</label><input id="s-email" type="email"/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Course</label><input id="s-course" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Semester</label><input id="s-semester" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Section</label><input id="s-section" type="text" required/><div class="error-msg"></div></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="modal-cancel">Cancel</button>
+                <button class="btn btn-danger" id="delete-student-btn" style="display:none;">Delete</button>
+                <button class="btn btn-primary" type="submit" form="student-form">Save</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

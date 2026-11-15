@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:fragment="head(title)">
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title th:text="${title} ? ${title} : 'Attendance Management System'">Attendance Management System</title>
+        <link th:rel="stylesheet" th:href="@{/css/style.css}"/>
+    </th:block>
+</head>
+<body>
+    <th:block th:fragment="scripts">
+        <script th:src="@{/js/app.js}"></script>
+    </th:block>
+
+    <th:block th:fragment="sidebar">
+        <nav class="sidebar" data-admin-only="true">
+            <div class="sidebar-header">Attendance</div>
+            <nav>
+                <ul>
+                    <li><a class="nav-link" th:class="${page == 'dashboard'} ? 'active' : ''" th:href="@{/dashboard}" data-page="dashboard">&#128200; Dashboard</a></li>
+                    <li><a class="nav-link" th:class="${page == 'students'} ? 'active' : ''" th:href="@{/students}" data-page="students">&#128100; Students</a></li>
+                    <li><a class="nav-link" th:class="${page == 'courses'} ? 'active' : ''" th:href="@{/courses}" data-page="courses">&#128220; Courses</a></li>
+                    <li><a class="nav-link" th:class="${page == 'subjects'} ? 'active' : ''" th:href="@{/subjects}" data-page="subjects">&#128218; Subjects</a></li>
+                    <li><a class="nav-link" th:class="${page == 'attendance'} ? 'active' : ''" th:href="@{/attendance}" data-page="attendance">&#128197; Attendance</a></li>
+                    <li><a class="nav-link" th:class="${page == 'reports'} ? 'active' : ''" th:href="@{/reports}" data-page="reports">&#128202; Reports</a></li>
+                    <li><a class="nav-link" th:class="${page == 'users'} ? 'active' : ''" th:href="@{/users}" data-page="users">&#128105; Users</a></li>
+                    <li><a class="nav-link" th:class="${page == 'settings'} ? 'active' : ''" th:href="@{/settings}" data-page="settings">&#128271; Settings</a></li>
+                    <li><a class="nav-link" th:href="@{/profile}" data-page="profile">&#128100; Profile</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <span>Attendance System v1.0</span>
+                <button class="btn-logout" th:onclick="|logout()|" id="btn-logout">Logout</button>
+            </div>
+        </nav>
+    </th:block>
+
+    <th:block th:fragment="topbar(user, role)">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-btn" id="menu-btn" aria-label="Toggle menu">&#9776;</button>
+                <div>Attendance Management System</div>
+            </div>
+            <div class="user-info">
+                <span th:text="${user}">User</span>
+                <span class="user-badge" th:text="${role}" th:id="'user-role'">Faculty</span>
+            </div>
+        </header>
+    </th:block>
+</body>
+</html>
