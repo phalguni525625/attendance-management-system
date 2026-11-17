@@ -58,6 +58,8 @@ function Write-Log {
     $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     $line = "[$ts] [$Level] $Message"
     $script:LOG_ENTRIES += $line
+    # Append immediately so setup.log is always current and the final write can never appear to hang.
+    try { Add-Content -LiteralPath $LOG_FILE -Value $line -Encoding utf8 } catch { }
     switch ($Level) {
         'ERROR' { Write-Host $line -ForegroundColor Red }
         'WARN'  { Write-Host $line -ForegroundColor Yellow }
@@ -67,7 +69,11 @@ function Write-Log {
 }
 
 function Save-Log {
-    try { $script:LOG_ENTRIES | Out-File -FilePath $LOG_FILE -Encoding utf8 } catch { }
+    # Log lines are appended by Write-Log as they happen. This function is kept
+    # as a final hook so the log file exists even if no message was written.
+    if (-not (Test-Path -LiteralPath $LOG_FILE)) {
+        try { New-Item -ItemType File -Path $LOG_FILE -Force | Out-Null } catch { }
+    }
 }
 
 function Show-Banner {
@@ -521,6 +527,7 @@ function Configure-Database {
 CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS $TEST_DB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$appPassSql';
+ALTER USER '$DB_USER'@'localhost' IDENTIFIED BY '$appPassSql';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, LOCK TABLES, CREATE TEMPORARY TABLES, EXECUTE, TRIGGER ON $DB_NAME.* TO '$DB_USER'@'localhost';
 GRANT ALL PRIVILEGES ON $TEST_DB.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
@@ -735,9 +742,6 @@ function Main {
         # Run
         if (-not (Start-App)) { $script:EXIT_CODE = 1; return }
 
-        Write-Log 'Opening http://localhost:8080 in the default browser...'
-        try { Start-Process "http://localhost:$APP_PORT" } catch { }
-
         Write-Host ''
         Write-Host '============================================================' -ForegroundColor Green
         Write-Host '  Setup complete!' -ForegroundColor Green
@@ -747,6 +751,11 @@ function Main {
         Write-Host '  Stop app:  Stop-AttendanceApp.bat' -ForegroundColor Green
         Write-Host "  Log file:  $LOG_FILE" -ForegroundColor Green
         Write-Host '============================================================' -ForegroundColor Green
+
+        # Open the browser last so the console summary is never delayed by the browser.
+        Write-Log 'Opening http://localhost:8080 in the default browser...'
+        try { Start-Process "http://localhost:$APP_PORT" } catch { }
+        Write-Log 'Setup finished successfully.'
     } catch {
         Write-Log "FATAL: $($_.Exception.Message)" 'ERROR'
         Write-Log $_.ScriptStackTrace 'ERROR'
