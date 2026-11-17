@@ -57,6 +57,12 @@ public class StudentRepository {
         }
     }
 
+    public List<Student> findByCourseSemesterSection(String course, String semester, String section) {
+        String sql = "SELECT id, student_id, name, email, course, semester, section, created_at, updated_at "
+            + "FROM students WHERE course = ? AND semester = ? AND section = ? ORDER BY name";
+        return jdbc.query(sql, MAPPER, course, semester, section);
+    }
+
     public boolean existsByStudentId(String studentId) {
         String sql = "SELECT COUNT(1) FROM students WHERE student_id = ?";
         return jdbc.queryForObject(sql, Integer.class, studentId) > 0;

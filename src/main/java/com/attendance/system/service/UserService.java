@@ -36,6 +36,12 @@ public class UserService {
 
     @Transactional
     public User create(UserDto dto) {
+        if (dto.getPassword() == null || dto.getPassword().length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
+        if (dto.getRole() == null) {
+            throw new IllegalArgumentException("Role is required");
+        }
         if (userRepository.existsByUsername(dto.getUsername())) {
             throw new IllegalArgumentException("Username already exists: " + dto.getUsername());
         }
@@ -57,6 +63,9 @@ public class UserService {
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         if (userRepository.existsByUsernameExcluding(dto.getUsername(), id)) {
             throw new IllegalArgumentException("Username already exists: " + dto.getUsername());
+        }
+        if (dto.getRole() == null) {
+            throw new IllegalArgumentException("Role is required");
         }
         user.setUsername(dto.getUsername());
         user.setFullName(dto.getFullName());

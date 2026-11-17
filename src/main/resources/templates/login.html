@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments :: head(~{title})">Login</head>
+<head th:replace="~{fragments :: head(title='Login')}">Login</head>
 <body th:attr="data-page='login'" data-is-admin="false">
-    <th:block th:replace="fragments :: scripts"></th:block>
+    <th:block th:replace="~{fragments :: scripts}"></th:block>
     <main style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem;">
         <div class="card" style="width:100%;max-width:400px;padding:2rem;">
             <div style="text-align:center;margin-bottom:1.5rem;">

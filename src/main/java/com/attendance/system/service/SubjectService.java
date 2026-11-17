@@ -2,6 +2,8 @@ package com.attendance.system.service;
 
 import com.attendance.system.dto.SubjectDto;
 import com.attendance.system.model.Subject;
+import com.attendance.system.repository.AttendanceSessionRepository;
+import com.attendance.system.repository.CourseRepository;
 import com.attendance.system.repository.SubjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +15,15 @@ import java.util.Optional;
 public class SubjectService {
 
     private final SubjectRepository subjectRepository;
+    private final CourseRepository courseRepository;
+    private final AttendanceSessionRepository sessionRepository;
 
-    public SubjectService(SubjectRepository subjectRepository) {
+    public SubjectService(SubjectRepository subjectRepository,
+                          CourseRepository courseRepository,
+                          AttendanceSessionRepository sessionRepository) {
         this.subjectRepository = subjectRepository;
+        this.courseRepository = courseRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     public List<Subject> findAll() {
@@ -35,6 +43,9 @@ public class SubjectService {
         if (subjectRepository.existsByCode(dto.getCode())) {
             throw new IllegalArgumentException("Subject code already exists: " + dto.getCode());
         }
+        if (!courseRepository.findByCode(dto.getCourseCode()).isPresent()) {
+            throw new IllegalArgumentException("Course not found: " + dto.getCourseCode());
+        }
         Subject subject = toEntity(dto);
         Long id = subjectRepository.save(subject);
         subject.setId(id);
@@ -48,6 +59,12 @@ public class SubjectService {
         if (subjectRepository.existsByCodeExcluding(dto.getCode(), id)) {
             throw new IllegalArgumentException("Subject code already exists: " + dto.getCode());
         }
+        if (!courseRepository.findByCode(dto.getCourseCode()).isPresent()) {
+            throw new IllegalArgumentException("Course not found: " + dto.getCourseCode());
+        }
+        if (!subject.getCode().equals(dto.getCode()) && sessionRepository.existsBySubjectCode(subject.getCode())) {
+            throw new IllegalArgumentException("Cannot change the code of a subject that already has attendance sessions");
+        }
         subject.setCode(dto.getCode());
         subject.setName(dto.getName());
         subject.setCourseCode(dto.getCourseCode());
@@ -58,6 +75,11 @@ public class SubjectService {
 
     @Transactional
     public void delete(Long id) {
+        Subject subject = subjectRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + id));
+        if (sessionRepository.existsBySubjectCode(subject.getCode())) {
+            throw new IllegalArgumentException("Cannot delete a subject that has attendance sessions.");
+        }
         subjectRepository.delete(id);
     }
 

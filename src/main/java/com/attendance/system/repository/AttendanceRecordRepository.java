@@ -42,6 +42,30 @@ public class AttendanceRecordRepository {
         return jdbc.query(sql, MAPPER);
     }
 
+    /**
+     * Records belonging to non-cancelled sessions only. Used by all attendance
+     * percentage/defaulters calculations so cancelled sessions are excluded.
+     */
+    public List<AttendanceRecord> findAllActive() {
+        String sql = "SELECT ar.id, ar.session_id, ar.student_id, ar.student_name, ar.status, ar.updated_by, ar.updated_at "
+            + "FROM attendance_records ar JOIN attendance_sessions s ON ar.session_id = s.id "
+            + "WHERE s.status = 'active' ORDER BY ar.id";
+        return jdbc.query(sql, MAPPER);
+    }
+
+    public List<AttendanceRecord> findByStudentId(String studentId) {
+        String sql = "SELECT id, session_id, student_id, student_name, status, updated_by, updated_at FROM attendance_records WHERE student_id = ? ORDER BY id";
+        return jdbc.query(sql, MAPPER, studentId);
+    }
+
+    public long countAll() {
+        return jdbc.queryForObject("SELECT COUNT(1) FROM attendance_records", Long.class);
+    }
+
+    public long countPresent() {
+        return jdbc.queryForObject("SELECT COUNT(1) FROM attendance_records WHERE status = 'PRESENT'", Long.class);
+    }
+
     public Optional<AttendanceRecord> findBySessionAndStudent(Long sessionId, String studentId) {
         String sql = "SELECT id, session_id, student_id, student_name, status, updated_by, updated_at FROM attendance_records WHERE session_id = ? AND student_id = ?";
         try {
@@ -82,9 +106,14 @@ public class AttendanceRecordRepository {
         return jdbc.update(sql, sessionId);
     }
 
-    public int deleteByStudent(Long studentId) {
+    public int deleteByStudent(String studentId) {
         String sql = "DELETE FROM attendance_records WHERE student_id = ?";
         return jdbc.update(sql, studentId);
+    }
+
+    public int updateStudentId(String oldStudentId, String newStudentId) {
+        String sql = "UPDATE attendance_records SET student_id = ? WHERE student_id = ?";
+        return jdbc.update(sql, newStudentId, oldStudentId);
     }
 
     public int deleteBySubjectAndDateRange(String subjectCode, String startDate, String endDate) {

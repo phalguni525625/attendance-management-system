@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments :: head(~{title})">Students</head>
+<head th:replace="~{fragments :: head(title='Students')}">Students</head>
 <body th:attr="data-page='students'">
-    <th:block th:replace="fragments :: sidebar"></th:block>
-    <th:block th:replace="fragments :: topbar"></th:block>
-    <th:block th:replace="fragments :: scripts"></th:block>
+    <th:block th:replace="~{fragments :: sidebar}"></th:block>
+    <th:block th:replace="~{fragments :: topbar(user=${user}, role=${role})}"></th:block>
+    <th:block th:replace="~{fragments :: scripts}"></th:block>
     <div class="main">
         <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
             <div class="page-header">
@@ -21,7 +21,7 @@
                 <select id="filter-course" placeholder="Course"><option value="">All courses</option></select>
                 <select id="filter-semester"><option value="">All semesters</option></select>
                 <select id="filter-section"><option value="">All sections</option></select>
-                <button class="btn btn-primary" id="btn-add-student">&#128224; Add Student</button>
+                <button class="btn btn-primary" id="btn-add-student" data-admin-only="true">&#128224; Add Student</button>
                 <span data-admin-only="true" style="font-size:0.85rem;color:var(--text-muted);">Admin only: add/edit/delete</span>
             </div>
             <div class="table-wrap">

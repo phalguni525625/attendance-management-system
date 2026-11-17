@@ -37,9 +37,17 @@ class AuthSecurityTest {
     @Test
     @DisplayName("faculty can access protected endpoint")
     void facultyCanAccess() throws Exception {
-        mockMvc.perform(get("/api/users")
+        mockMvc.perform(get("/api/students")
             .with(SecurityMockMvcRequestPostProcessors.user("faculty").roles("FACULTY")))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("faculty cannot list users")
+    void facultyCannotListUsers() throws Exception {
+        mockMvc.perform(get("/api/users")
+            .with(SecurityMockMvcRequestPostProcessors.user("faculty").roles("FACULTY")))
+            .andExpect(status().isForbidden());
     }
 
     @Test

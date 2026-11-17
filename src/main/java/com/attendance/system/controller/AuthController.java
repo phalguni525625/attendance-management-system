@@ -26,6 +26,9 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiResponse<Map<String, Object>> me(@AuthenticationPrincipal CustomUserDetails user) {
+        if (user == null) {
+            return ApiResponse.<Map<String, Object>>error("Not authenticated");
+        }
         Map<String, Object> data = new HashMap<>();
         data.put("id", user.getId());
         data.put("username", user.getUsername());

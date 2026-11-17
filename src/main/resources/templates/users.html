@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments :: head(~{title})">Users</head>
+<head th:replace="~{fragments :: head(title='Users')}">Users</head>
 <body th:attr="data-page='users'" data-is-admin="true">
-    <th:block th:replace="fragments :: sidebar"></th:block>
-    <th:block th:replace="fragments :: topbar"></th:block>
-    <th:block th:replace="fragments :: scripts"></th:block>
+    <th:block th:replace="~{fragments :: sidebar}"></th:block>
+    <th:block th:replace="~{fragments :: topbar(user=${user}, role=${role})}"></th:block>
+    <th:block th:replace="~{fragments :: scripts}"></th:block>
     <div class="main">
         <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
             <div class="page-header">
@@ -13,11 +13,45 @@
             </div>
         </header>
         <div class="page">
+            <div id="alert-users"></div>
+            <div class="toolbar">
+                <button class="btn btn-primary" id="btn-add-user">&#128100; Add User</button>
+                <span data-admin-only="true" style="font-size:0.85rem;color:var(--text-muted);">Admin only</span>
+            </div>
             <div class="table-wrap">
                 <table>
                     <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="users-list"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="user-modal">
+        <div class="modal">
+            <div class="modal-header"><div class="modal-title" id="user-modal-title">Add User</div><button class="modal-close">&#215;</button></div>
+            <div class="modal-body">
+                <form id="user-form">
+                    <div class="form-group"><label>Username</label><input id="u-username" type="text" required minlength="3"/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Full Name</label><input id="u-fullname" type="text" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Email</label><input id="u-email" type="email" required/><div class="error-msg"></div></div>
+                    <div class="form-group"><label>Password</label><input id="u-password" type="password" minlength="6" placeholder="Leave blank to keep current password"/><div class="error-msg"></div></div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="u-role">
+                            <option value="FACULTY">Faculty</option>
+                            <option value="ADMIN">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input id="u-enabled" type="checkbox" checked/> Enabled</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="user-modal-cancel">Cancel</button>
+                <button class="btn btn-danger" id="user-delete-btn" style="display:none;">Delete</button>
+                <button class="btn btn-primary" type="submit" form="user-form">Save</button>
             </div>
         </div>
     </div>

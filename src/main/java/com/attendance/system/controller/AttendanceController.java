@@ -6,6 +6,7 @@ import com.attendance.system.dto.AttendanceRecordDto;
 import com.attendance.system.dto.AttendanceSessionDto;
 import com.attendance.system.security.CustomUserDetails;
 import com.attendance.system.service.AttendanceService;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class AttendanceController {
 
     @PostMapping("/sessions")
     @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
-    public ApiResponse<AttendanceSessionDto> createSession(@RequestBody AttendanceSessionDto dto,
+    public ApiResponse<AttendanceSessionDto> createSession(@Valid @RequestBody AttendanceSessionDto dto,
                                                            @AuthenticationPrincipal CustomUserDetails user) {
         return ApiResponse.ok("Attendance session created", attendanceService.createSession(dto, user.getUsername()));
     }

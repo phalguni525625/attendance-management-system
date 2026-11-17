@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments :: head(~{title})">Reports</head>
+<head th:replace="~{fragments :: head(title='Reports')}">Reports</head>
 <body th:attr="data-page='reports'">
-    <th:block th:replace="fragments :: sidebar"></th:block>
-    <th:block th:replace="fragments :: topbar"></th:block>
-    <th:block th:replace="fragments :: scripts"></th:block>
+    <th:block th:replace="~{fragments :: sidebar}"></th:block>
+    <th:block th:replace="~{fragments :: topbar(user=${user}, role=${role})}"></th:block>
+    <th:block th:replace="~{fragments :: scripts}"></th:block>
     <div class="main">
         <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
             <div class="page-header">

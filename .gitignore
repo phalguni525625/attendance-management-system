@@ -1,27 +1,12 @@
-# =============================================================================
-# Attendance Management System - .gitignore
-# =============================================================================
-
-# Build outputs
+# Build output
 target/
-*.jar
 *.class
+*.jar
 
-# Local environment / secrets (never commit)
-.env
-.env.local
-*.env
-app.pid
-app.out.log
-app.err.log
-setup.log
-
-# IDE
+# IDE / editor
 .idea/
-.vscode/
 *.iml
-*.ipr
-*.iws
+.vscode/
 .settings/
 .classpath
 .project
@@ -29,21 +14,19 @@ setup.log
 # OS
 .DS_Store
 Thumbs.db
-ehcache.xml
 
-# Logs
+# Local configuration and secrets (never commit)
+.env
+*.env
+!.env.example
+
+# Logs and runtime files
 *.log
-logs/
+app.pid
+app.startcode
+mysql.pid
 
-# Database files (do not commit database files or dumps)
-*.mdb
-*.accdb
-*.sql.data
-database/*.data
-
-# Temporary
-*.tmp
-*.bak
-
-# Maven
-.mvn/
+# Test / coverage output
+coverage/
+*.exec
+surefire-reports/

@@ -1,12 +1,33 @@
 package com.attendance.system.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 public class StudentDto {
 
+    @NotBlank(message = "Student ID is required")
+    @Size(max = 30, message = "Student ID must not exceed 30 characters")
     private String studentId;
+
+    @NotBlank(message = "Name is required")
+    @Size(max = 100, message = "Name must not exceed 100 characters")
     private String name;
+
+    @Email(message = "Email should be valid")
+    @Size(max = 150, message = "Email must not exceed 150 characters")
     private String email;
+
+    @NotBlank(message = "Course is required")
+    @Size(max = 100, message = "Course must not exceed 100 characters")
     private String course;
+
+    @NotBlank(message = "Semester is required")
+    @Size(max = 20, message = "Semester must not exceed 20 characters")
     private String semester;
+
+    @NotBlank(message = "Section is required")
+    @Size(max = 20, message = "Section must not exceed 20 characters")
     private String section;
 
     public StudentDto() {

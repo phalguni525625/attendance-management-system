@@ -1,0 +1,23 @@
+# Normalize line endings
+* text=auto
+
+# Windows scripts keep CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Source / docs use LF
+*.java text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.sql  text eol=lf
+*.md   text eol=lf
+*.properties text eol=lf
+
+# Binary
+*.pdf  binary
+*.jar  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary

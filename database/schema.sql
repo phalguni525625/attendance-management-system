@@ -3,10 +3,11 @@
 -- ============================================================================
 -- This script is idempotent-safe: it creates tables only if they do not exist
 -- and never drops existing data. Run once during setup.
+--
+-- The database itself is created by the setup script / manual installation.
+-- Run this file while connected to the attendance_db database, e.g.:
+--   mysql -u root -p attendance_db < database/schema.sql
 -- ============================================================================
-
-CREATE DATABASE IF NOT EXISTS attendance_db
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
 -- Table: users

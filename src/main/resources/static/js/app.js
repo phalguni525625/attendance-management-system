@@ -6,9 +6,10 @@ async function initCsrf() {
     try {
         const res = await fetch(`${API}/auth/csrf-token`, { credentials: "same-origin" });
         if (res.ok) {
-            const data = await res.json();
-            csrfToken = data.token;
-            csrfHeader = data.header;
+            const body = await res.json();
+            const payload = body.data || body;
+            csrfToken = payload.token;
+            csrfHeader = payload.header || "X-XSRF-TOKEN";
         }
     } catch (e) {
         console.warn("CSRF token fetch failed", e);
@@ -34,6 +35,10 @@ async function api(path, opts = {}) {
     const text = await res.text();
     let data = null;
     if (text) {
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+            throw new Error("Unexpected non-JSON response from server");
+        }
         try { data = JSON.parse(text); } catch { data = { message: text }; }
     }
     if (!res.ok) {
@@ -53,13 +58,30 @@ function showAlert(containerId, type, message) {
 }
 
 function escapeHtml(text) {
-    if (!text) return "";
+    if (text == null) return "";
     return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c]);
+}
+
+function escapeJs(s) {
+    return String(s == null ? "" : s)
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;")
+        .replace(/\n/g, "\\n")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 function formatDate(dateStr) {
     if (!dateStr) return "";
     return dateStr;
+}
+
+function applyRoleVisibility(isAdmin) {
+    document.body.classList.toggle("role-admin", isAdmin);
+    document.querySelectorAll("[data-admin-only]").forEach(el => {
+        el.style.display = isAdmin ? "" : "none";
+    });
 }
 
 async function loadCurrentUser() {
@@ -69,13 +91,12 @@ async function loadCurrentUser() {
         if (el) el.textContent = data.data.fullName || data.data.username;
         const roleBadge = document.getElementById("user-role");
         if (roleBadge) {
-            roleBadge.textContent = data.data.role;
-            roleBadge.className = "user-badge " + (data.data.role === "ADMIN" ? "" : "");
+            const role = data.data.role || "";
+            roleBadge.textContent = role;
+            roleBadge.className = "user-badge";
         }
         const isAdmin = document.body.dataset.isAdmin === "true" || data.data.role === "ADMIN";
-        document.querySelectorAll("[data-admin-only]").forEach(el => {
-            el.style.display = isAdmin ? "" : "none";
-        });
+        applyRoleVisibility(isAdmin);
     } catch (e) {
         console.warn("loadCurrentUser failed", e);
     }
@@ -98,6 +119,8 @@ async function initDashboard() {
         if (statsContainer) {
             statsContainer.innerHTML = `
                 <div class="card"><div class="card-label">Total Students</div><div class="card-value">${d.totalStudents}</div></div>
+                <div class="card"><div class="card-label">Courses</div><div class="card-value">${d.totalCourses}</div></div>
+                <div class="card"><div class="card-label">Subjects</div><div class="card-value">${d.totalSubjects}</div></div>
                 <div class="card"><div class="card-label">Attendance Sessions</div><div class="card-value">${d.totalSessions}</div></div>
                 <div class="card"><div class="card-label">Overall Attendance %</div><div class="card-value">${d.overallPercentage}%</div></div>
                 <div class="card"><div class="card-label">Students Below Threshold (${d.threshold}%)</div><div class="card-value card-delta bad">${d.belowThreshold}</div></div>
@@ -108,11 +131,11 @@ async function initDashboard() {
             const recent = (sessions.data || []).slice(0, 5);
             recentContainer.innerHTML = recent.map(s => `
                 <tr>
-                    <td>${s.sessionDate}</td>
-                    <td>${s.subjectCode}</td>
-                    <td>${s.section}</td>
-                    <td><span class="badge ${s.status === "active" ? "badge-active" : "badge-cancelled"}">${s.status}</span></td>
-                    <td>${s.createdBy}</td>
+                    <td>${escapeHtml(s.sessionDate)}</td>
+                    <td>${escapeHtml(s.subjectCode)}</td>
+                    <td>${escapeHtml(s.section)}</td>
+                    <td><span class="badge ${s.status === "active" ? "badge-active" : "badge-cancelled"}">${escapeHtml(s.status)}</span></td>
+                    <td>${escapeHtml(s.createdBy)}</td>
                 </tr>
             `).join("") || "<tr><td colspan='5' style='text-align:center;color:var(--text-muted);'>No sessions yet</td></tr>";
         }
@@ -163,7 +186,7 @@ async function initStudents() {
                 <td>${escapeHtml(s.course)}</td>
                 <td>${escapeHtml(s.semester)}</td>
                 <td>${escapeHtml(s.section)}</td>
-                <td>
+                <td class="admin-action">
                     <button class="btn-icon" onclick="editStudent(${s.id}, '${escapeJs(s.studentId)}', '${escapeJs(s.name)}', '${escapeJs(s.email || "")}', '${escapeJs(s.course)}', '${escapeJs(s.semester)}', '${escapeJs(s.section)}')" title="Edit">&#9998;</button>
                     <button class="btn-icon" onclick="confirmDeleteStudent(${s.id}, '${escapeJs(s.name)}')" title="Delete">&#10006;</button>
                 </td>
@@ -188,7 +211,7 @@ async function initStudents() {
             semester: fields.semester.value.trim(),
             section: fields.section.value.trim()
         };
-        Object.values(fields).forEach(f => { f.classList.remove("invalid"); f.nextElementSibling && (f.nextElementSibling.style.display = "none"); });
+        Object.values(fields).forEach(f => { f.classList.remove("invalid"); const err = f.nextElementSibling; if (err && err.classList.contains("error-msg")) { err.style.display = "none"; err.textContent = ""; } });
         try {
             if (editingId) {
                 await api(`/students/${editingId}`, { method: "PUT", body: JSON.stringify(payload) });
@@ -200,12 +223,20 @@ async function initStudents() {
             closeModal();
             load();
         } catch (err) {
-            if (err.status === 400 && err.data && err.data.data) {
+            if (err.status === 400 && err.data && err.data.data && typeof err.data.data === "object") {
                 const errors = err.data.data;
                 Object.keys(errors).forEach(k => {
                     const f = fields[k];
-                    if (f) { f.classList.add("invalid"); const errEl = f.nextElementSibling; if (errEl && errEl.classList.contains("error-msg")) { errEl.textContent = errors[k]; errEl.style.display = "block"; } }
+                    if (f) {
+                        f.classList.add("invalid");
+                        const errEl = f.nextElementSibling;
+                        if (errEl && errEl.classList.contains("error-msg")) {
+                            errEl.textContent = errors[k];
+                            errEl.style.display = "block";
+                        }
+                    }
                 });
+                if (Object.keys(errors).length === 0) showAlert(alertContainer.id, "error", err.message);
             } else {
                 showAlert(alertContainer.id, "error", err.message || "Failed to save student");
             }
@@ -223,7 +254,7 @@ async function initStudents() {
     };
 
     window.confirmDeleteStudent = (id, name) => {
-        if (!confirm(`Delete student "${escapeHtml(name)}"? Related attendance records will be handled.`)) return;
+        if (!confirm(`Delete student "${name}"? Related attendance records will also be removed.`)) return;
         deleteStudent(id);
     };
 
@@ -243,12 +274,14 @@ async function initStudents() {
     document.getElementById("btn-add-student").onclick = () => {
         editingId = null; modalTitle.textContent = "Add Student";
         Object.values(fields).forEach(f => { f.value = ""; f.classList.remove("invalid"); });
-        document.querySelectorAll(".error-msg").forEach(el => el.style.display = "none");
+        document.querySelectorAll("#student-form .error-msg").forEach(el => { el.style.display = "none"; el.textContent = ""; });
         deleteBtn.style.display = "none";
         modal.classList.add("open");
     };
 
     function closeModal() { modal.classList.remove("open"); editingId = null; }
+    const studentSaveBtn = document.querySelector('button[form="student-form"]');
+    if (studentSaveBtn) studentSaveBtn.onclick = (e) => { e.preventDefault(); form.requestSubmit(); };
     search.oninput = load;
     filterCourse.onchange = load;
     filterSemester.onchange = load;
@@ -275,7 +308,7 @@ async function initCourses() {
                 <td>${escapeHtml(c.code)}</td>
                 <td>${escapeHtml(c.name)}</td>
                 <td>${escapeHtml(c.department || "-")}</td>
-                <td>
+                <td class="admin-action">
                     <button class="btn-icon" onclick="editCourse(${c.id}, '${escapeJs(c.code)}', '${escapeJs(c.name)}', '${escapeJs(c.department || "")}')" title="Edit">&#9998;</button>
                     <button class="btn-icon" onclick="confirmDeleteCourse(${c.id}, '${escapeJs(c.code)}')" title="Delete">&#10006;</button>
                 </td>
@@ -302,20 +335,28 @@ async function initCourses() {
         document.getElementById("course-modal").classList.add("open");
     };
 
-    window.confirmDeleteCourse = (id, code) => { if (!confirm(`Delete course "${escapeHtml(code)}"?")) return; deleteCourse(id); };
+    window.confirmDeleteCourse = (id, code) => {
+        if (!confirm(`Delete course "${code}"?`)) return;
+        deleteCourse(id);
+    };
+
     async function deleteCourse(id) {
         try { await api(`/courses/${id}`, { method: "DELETE" }); showAlert(alertContainer.id, "success", "Course deleted"); load(); }
         catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to delete course"); }
     }
-    document.getElementById("course-modal-cancel").onclick = () => document.getElementById("course-modal").classList.remove("open");
-    document.getElementById("course-modal").querySelector(".modal-close").onclick = () => document.getElementById("course-modal").classList.remove("open");
-    document.getElementById("course-delete-btn").onclick = () => { if (editingId) deleteCourse(editingId); document.getElementById("course-modal").classList.remove("open"); };
+    document.getElementById("course-modal-cancel").onclick = closeModal;
+    document.getElementById("course-modal").querySelector(".modal-close").onclick = closeModal;
+    document.getElementById("course-delete-btn").onclick = () => { if (editingId) deleteCourse(editingId); closeModal(); };
     document.getElementById("btn-add-course").onclick = () => {
         editingId = null; document.getElementById("course-modal-title").textContent = "Add Course";
         codeIn.value = ""; nameIn.value = ""; deptIn.value = "";
         document.getElementById("course-delete-btn").style.display = "none";
         document.getElementById("course-modal").classList.add("open");
     };
+
+    function closeModal() { document.getElementById("course-modal").classList.remove("open"); editingId = null; }
+    const courseSaveBtn = document.querySelector('button[form="course-form"]');
+    if (courseSaveBtn) courseSaveBtn.onclick = (e) => { e.preventDefault(); form.requestSubmit(); };
     load();
 }
 
@@ -339,7 +380,7 @@ async function initSubjects() {
                 <td>${escapeHtml(s.name)}</td>
                 <td>${escapeHtml(s.courseCode)}</td>
                 <td>${escapeHtml(s.semester)}</td>
-                <td>
+                <td class="admin-action">
                     <button class="btn-icon" onclick="editSubject(${s.id}, '${escapeJs(s.code)}', '${escapeJs(s.name)}', '${escapeJs(s.courseCode)}', '${escapeJs(s.semester)}')" title="Edit">&#9998;</button>
                     <button class="btn-icon" onclick="confirmDeleteSubject(${s.id}, '${escapeJs(s.code)}')" title="Delete">&#10006;</button>
                 </td>
@@ -365,20 +406,28 @@ async function initSubjects() {
         document.getElementById("subject-modal").classList.add("open");
     };
 
-    window.confirmDeleteSubject = (id, code) => { if (!confirm(`Delete subject "${escapeHtml(code)}"?")) return; deleteSubject(id); };
+    window.confirmDeleteSubject = (id, code) => {
+        if (!confirm(`Delete subject "${code}"?`)) return;
+        deleteSubject(id);
+    };
+
     async function deleteSubject(id) {
         try { await api(`/subjects/${id}`, { method: "DELETE" }); showAlert(alertContainer.id, "success", "Subject deleted"); load(); }
         catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to delete subject"); }
     }
-    document.getElementById("subject-modal-cancel").onclick = () => document.getElementById("subject-modal").classList.remove("open");
-    document.getElementById("subject-modal").querySelector(".modal-close").onclick = () => document.getElementById("subject-modal").classList.remove("open");
-    document.getElementById("subject-delete-btn").onclick = () => { if (editingId) deleteSubject(editingId); document.getElementById("subject-modal").classList.remove("open"); };
+    document.getElementById("subject-modal-cancel").onclick = closeModal;
+    document.getElementById("subject-modal").querySelector(".modal-close").onclick = closeModal;
+    document.getElementById("subject-delete-btn").onclick = () => { if (editingId) deleteSubject(editingId); closeModal(); };
     document.getElementById("btn-add-subject").onclick = () => {
         editingId = null; document.getElementById("subject-modal-title").textContent = "Add Subject";
         codeIn.value = ""; nameIn.value = ""; courseIn.value = ""; semIn.value = "";
         document.getElementById("subject-delete-btn").style.display = "none";
         document.getElementById("subject-modal").classList.add("open");
     };
+
+    function closeModal() { document.getElementById("subject-modal").classList.remove("open"); editingId = null; }
+    const subjectSaveBtn = document.querySelector('button[form="subject-form"]');
+    if (subjectSaveBtn) subjectSaveBtn.onclick = (e) => { e.preventDefault(); form.requestSubmit(); };
     load();
 }
 
@@ -406,13 +455,45 @@ async function initAttendance() {
         const courses = res.data || [];
         courseSel.innerHTML = '<option value="">Select course</option>' + courses.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} - ${escapeHtml(c.name)}</option>`).join("");
     }
+
+    async function loadSemesters() {
+        const cc = courseSel.value;
+        semesterSel.innerHTML = '<option value="">Select semester</option>';
+        sectionSel.innerHTML = '<option value="">Select section</option>';
+        if (!cc) return;
+        try {
+            const res = await api(`/students?course=${encodeURIComponent(cc)}`);
+            const semesters = [...new Set((res.data || []).map(s => s.semester).filter(Boolean))].sort();
+            semesterSel.innerHTML = '<option value="">Select semester</option>' + semesters.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+        } catch (e) {
+            console.warn("Failed to load semesters", e);
+        }
+    }
+
+    async function loadSections() {
+        const cc = courseSel.value; const sem = semesterSel.value;
+        sectionSel.innerHTML = '<option value="">Select section</option>';
+        if (!cc || !sem) return;
+        try {
+            const res = await api(`/students?course=${encodeURIComponent(cc)}&semester=${encodeURIComponent(sem)}`);
+            const sections = [...new Set((res.data || []).map(s => s.section).filter(Boolean))].sort();
+            sectionSel.innerHTML = '<option value="">Select section</option>' + sections.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+        } catch (e) {
+            console.warn("Failed to load sections", e);
+        }
+    }
+
     async function loadSubjects() {
         const cc = courseSel.value; const sem = semesterSel.value;
         subjectSel.innerHTML = '<option value="">Select subject</option>';
         if (!cc || !sem) return;
-        const res = await api(`/subjects?courseCode=${encodeURIComponent(cc)}&semester=${encodeURIComponent(sem)}`);
-        const subjects = res.data || [];
-        subjectSel.innerHTML = '<option value="">Select subject</option>' + subjects.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} - ${escapeHtml(s.name)}</option>`).join("");
+        try {
+            const res = await api(`/subjects?courseCode=${encodeURIComponent(cc)}&semester=${encodeURIComponent(sem)}`);
+            const subjects = res.data || [];
+            subjectSel.innerHTML = '<option value="">Select subject</option>' + subjects.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} - ${escapeHtml(s.name)}</option>`).join("");
+        } catch (e) {
+            showAlert(alertContainer.id, "error", "Failed to load subjects");
+        }
     }
 
     async function loadSessions() {
@@ -429,43 +510,52 @@ async function initAttendance() {
         const sessions = res.data || [];
         sessionInfo.innerHTML = sessions.map(s => `
             <div class="card" style="padding:0.75rem;margin-bottom:0.5rem;">
-                <strong>${s.subjectCode}</strong> - ${s.section} on ${s.sessionDate}
-                <span class="badge ${s.status === "active" ? "badge-active" : "badge-cancelled"}">${s.status}</span>
+                <strong>${escapeHtml(s.subjectCode)}</strong> - ${escapeHtml(s.section)} on ${escapeHtml(s.sessionDate)}
+                <span class="badge ${s.status === "active" ? "badge-active" : "badge-cancelled"}">${escapeHtml(s.status)}</span>
                 ${s.status === "active" ? `<button class="btn btn-sm btn-outline" onclick="openSession(${s.id})">View/Edit</button>` : ""}
             </div>
         `).join("") || "<div style='color:var(--text-muted);font-size:0.9rem;'>No sessions for this selection.</div>";
     }
 
     async function openSession(sessionId) {
-        const res = await api(`/attendance/sessions/${sessionId}`);
-        const s = res.data;
-        currentSessionId = s.id;
-        sessionIdInput.value = s.id;
-        sessionInfo.innerHTML = `<div class="alert alert-info">Editing session: ${s.subjectCode} - ${s.section} on ${s.sessionDate} (${s.status})</div> <button class="btn btn-sm btn-danger" onclick="cancelSession(${s.id})">Cancel Session</button>`;
-        await loadStudentsForSession(s);
+        try {
+            const res = await api(`/attendance/sessions/${sessionId}`);
+            const s = res.data;
+            currentSessionId = s.id;
+            sessionIdInput.value = s.id;
+            sessionInfo.innerHTML = `<div class="alert alert-info">Editing session: ${escapeHtml(s.subjectCode)} - ${escapeHtml(s.section)} on ${escapeHtml(s.sessionDate)} (${escapeHtml(s.status)})</div> <button class="btn btn-sm btn-danger" onclick="cancelSession(${s.id})">Cancel Session</button>`;
+            await loadStudentsForSession(s);
+        } catch (err) {
+            showAlert(alertContainer.id, "error", err.message || "Failed to open session");
+        }
     }
 
     async function loadStudentsForSession(s) {
         studentsContainer.innerHTML = "<div style='color:var(--text-muted);'>Loading students...</div>";
         const cc = s.courseCode, sem = s.semester, sec = s.section;
-        const studentsRes = await api(`/students?course=${encodeURIComponent(cc)}&semester=${encodeURIComponent(sem)}&section=${encodeURIComponent(sec)}`);
-        const students = studentsRes.data || [];
-        const recordsRes = await api(`/attendance/sessions/${s.id}/records`);
-        const records = recordsRes.data || [];
-        const recordMap = {}; records.forEach(r => recordMap[r.studentId] = r.status);
+        try {
+            const studentsRes = await api(`/students?course=${encodeURIComponent(cc)}&semester=${encodeURIComponent(sem)}&section=${encodeURIComponent(sec)}`);
+            const students = studentsRes.data || [];
+            const recordsRes = await api(`/attendance/sessions/${s.id}/records`);
+            const records = recordsRes.data || [];
+            const recordMap = {};
+            records.forEach(r => { recordMap[r.studentId] = r.status; });
 
-        studentsContainer.innerHTML = students.map(st => {
-            const status = recordMap[st.studentId] || "ABSENT";
-            return `
-            <div class="student-card">
-                <div class="info"><div class="name">${escapeHtml(st.name)}</div><div class="sid">${escapeHtml(st.studentId)}</div></div>
-                <div class="status-group">
-                    <button type="button" class="status-btn ${status === "PRESENT" ? "active" : ""}" onclick="toggleStatus(this, 'PRESENT', '${escapeJs(st.studentId)}')">Present</button>
-                    <button type="button" class="status-btn ${status === "ABSENT" ? "active" : ""}" onclick="toggleStatus(this, 'ABSENT', '${escapeJs(st.studentId)}')">Absent</button>
-                </div>
-            </div>`;
-        }).join("") || "<div style='color:var(--text-muted);'>No students in this course/semester/section.</div>";
-        saveBtn.disabled = students.length === 0;
+            studentsContainer.innerHTML = students.map(st => {
+                const status = recordMap[st.studentId] || "ABSENT";
+                return `
+                <div class="student-card">
+                    <div class="info"><div class="name">${escapeHtml(st.name)}</div><div class="sid">${escapeHtml(st.studentId)}</div></div>
+                    <div class="status-group">
+                        <button type="button" class="status-btn ${status === "PRESENT" ? "active" : ""}" data-status="PRESENT" data-student="${escapeJs(st.studentId)}" onclick="toggleStatus(this, 'PRESENT', '${escapeJs(st.studentId)}')">Present</button>
+                        <button type="button" class="status-btn ${status === "ABSENT" ? "active" : ""}" data-status="ABSENT" data-student="${escapeJs(st.studentId)}" onclick="toggleStatus(this, 'ABSENT', '${escapeJs(st.studentId)}')">Absent</button>
+                    </div>
+                </div>`;
+            }).join("") || "<div style='color:var(--text-muted);'>No students in this course/semester/section.</div>";
+            saveBtn.disabled = students.length === 0;
+        } catch (err) {
+            showAlert(alertContainer.id, "error", err.message || "Failed to load students");
+        }
     }
 
     window.toggleStatus = (btn, status, studentId) => {
@@ -492,8 +582,8 @@ async function initAttendance() {
             <div class="student-card">
                 <div class="info"><div class="name">${escapeHtml(st.name)}</div><div class="sid">${escapeHtml(st.studentId)}</div></div>
                 <div class="status-group">
-                    <button type="button" class="status-btn active" onclick="toggleStatus(this, 'PRESENT', '${escapeJs(st.studentId)}')" data-status="PRESENT" data-student="${escapeJs(st.studentId)}">Present</button>
-                    <button type="button" class="status-btn" onclick="toggleStatus(this, 'ABSENT', '${escapeJs(st.studentId)}')" data-status="ABSENT" data-student="${escapeJs(st.studentId)}">Absent</button>
+                    <button type="button" class="status-btn active" data-status="PRESENT" data-student="${escapeJs(st.studentId)}" onclick="toggleStatus(this, 'PRESENT', '${escapeJs(st.studentId)}')">Present</button>
+                    <button type="button" class="status-btn" data-status="ABSENT" data-student="${escapeJs(st.studentId)}" onclick="toggleStatus(this, 'ABSENT', '${escapeJs(st.studentId)}')">Absent</button>
                 </div>
             </div>`).join("") || "<div style='color:var(--text-muted);'>No students in this course/semester/section.</div>";
             saveBtn.disabled = students.length === 0;
@@ -506,8 +596,12 @@ async function initAttendance() {
             if (!confirm("Create a new attendance session and save these marks?")) return;
         }
         const marks = [];
-        document.querySelectorAll(".status-btn[data-status]").forEach(b => {
-            marks.push({ studentId: b.dataset.student, studentName: b.closest(".student-card").querySelector(".name").textContent, status: b.dataset.status === "PRESENT" ? "PRESENT" : "ABSENT" });
+        document.querySelectorAll(".status-btn.active[data-student]").forEach(b => {
+            marks.push({
+                studentId: b.dataset.student,
+                studentName: b.closest(".student-card").querySelector(".name").textContent,
+                status: b.dataset.status === "PRESENT" ? "PRESENT" : "ABSENT"
+            });
         });
         if (marks.length === 0) { showAlert(alertContainer.id, "error", "No students to mark."); return; }
         const payload = {
@@ -532,18 +626,22 @@ async function initAttendance() {
         if (!confirm("Cancel this attendance session?")) return;
         try {
             await api(`/attendance/sessions/${id}/cancel`, { method: "POST" });
+            currentSessionId = null;
+            sessionIdInput.value = "";
+            studentsContainer.innerHTML = "<div style='color:var(--text-muted);'>Session cancelled. Load students to start a new session.</div>";
+            saveBtn.disabled = true;
             showAlert(alertContainer.id, "success", "Session cancelled");
             loadSessions();
         } catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to cancel"); }
     };
 
-    courseSel.onchange = loadSubjects;
-    semesterSel.onchange = loadSubjects;
+    courseSel.onchange = async () => { await loadSemesters(); subjectSel.innerHTML = '<option value="">Select subject</option>'; sectionSel.innerHTML = '<option value="">Select section</option>'; sessionInfo.innerHTML = ""; };
+    semesterSel.onchange = async () => { await loadSections(); await loadSubjects(); await loadSessions(); };
     subjectSel.onchange = loadSessions;
     sectionSel.onchange = loadSessions;
     dateIn.onchange = loadSessions;
 
-    loadCourses();
+    await loadCourses();
 }
 
 // ---------------- Reports ----------------
@@ -569,7 +667,7 @@ async function initReports() {
         try {
             const res = await api(`/reports/student-wise?studentId=${encodeURIComponent(studentId)}`);
             const rows = res.data || [];
-            resultContainer.innerHTML = `<table><thead><tr><th>Date</th><th>Course</th><th>Subject</th><th>Section</th><th>Student ID</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.courseCode)}</td><td>${escapeHtml(r.subjectCode)}</td><td>${escapeHtml(r.section)}</td><td>${escapeHtml(r.studentId)}</td><td>${escapeHtml(r.studentName)}</td><td><span class="badge ${r.status === "PRESENT" ? "badge-present" : "badge-absent"}">${r.status}</span></td></tr>`).join("") || "<tr><td colspan='7' style='text-align:center;color:var(--text-muted);'>No attendance records</td></tr>"}</tbody></table>`;
+            resultContainer.innerHTML = `<table><thead><tr><th>Date</th><th>Course</th><th>Subject</th><th>Section</th><th>Student ID</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.courseCode)}</td><td>${escapeHtml(r.subjectCode)}</td><td>${escapeHtml(r.section)}</td><td>${escapeHtml(r.studentId)}</td><td>${escapeHtml(r.studentName)}</td><td><span class="badge ${r.status === "PRESENT" ? "badge-present" : "badge-absent"}">${escapeHtml(r.status)}</span></td></tr>`).join("") || "<tr><td colspan='7' style='text-align:center;color:var(--text-muted);'>No attendance records</td></tr>"}</tbody></table>`;
         } catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to generate report"); }
     }
 
@@ -634,6 +732,22 @@ async function initProfile() {
 async function initUsers() {
     const listEl = document.getElementById("users-list");
     if (!listEl) return;
+    const form = document.getElementById("user-form");
+    const modal = document.getElementById("user-modal");
+    const modalTitle = document.getElementById("user-modal-title");
+    const deleteBtn = document.getElementById("user-delete-btn");
+    const alertContainer = document.getElementById("alert-users");
+    let editingId = null;
+
+    const fields = {
+        username: document.getElementById("u-username"),
+        fullName: document.getElementById("u-fullname"),
+        email: document.getElementById("u-email"),
+        password: document.getElementById("u-password"),
+        role: document.getElementById("u-role"),
+        enabled: document.getElementById("u-enabled"),
+    };
+
     async function load() {
         const res = await api("/users");
         const users = res.data || [];
@@ -642,25 +756,94 @@ async function initUsers() {
                 <td>${escapeHtml(u.username)}</td>
                 <td>${escapeHtml(u.fullName)}</td>
                 <td>${escapeHtml(u.email)}</td>
-                <td><span class="badge">${u.role}</span></td>
+                <td><span class="badge">${escapeHtml(u.role)}</span></td>
                 <td>${u.enabled ? "Active" : "Disabled"}</td>
-                <td>
-                    <button class="btn-icon" onclick="editUser(${u.id}, '${escapeJs(u.username)}', '${escapeJs(u.fullName)}', '${escapeJs(u.email)}', '${u.role}', ${u.enabled})" title="Edit">&#9998;</button>
+                <td class="admin-action">
+                    <button class="btn-icon" onclick="editUser(${u.id}, '${escapeJs(u.username)}', '${escapeJs(u.fullName)}', '${escapeJs(u.email)}', '${escapeJs(u.role)}', ${u.enabled})" title="Edit">&#9998;</button>
                 </td>
             </tr>
         `).join("") || "<tr><td colspan='6' style='text-align:center;color:var(--text-muted);'>No users</td></tr>";
     }
+
+    window.editUser = (id, username, fullName, email, role, enabled) => {
+        editingId = id;
+        modalTitle.textContent = "Edit User";
+        fields.username.value = username;
+        fields.fullName.value = fullName;
+        fields.email.value = email;
+        fields.password.value = "";
+        fields.password.required = false;
+        fields.role.value = role;
+        fields.enabled.checked = !!enabled;
+        deleteBtn.style.display = "inline-block";
+        modal.classList.add("open");
+    };
+
+    function openAdd() {
+        editingId = null;
+        modalTitle.textContent = "Add User";
+        fields.username.value = "";
+        fields.fullName.value = "";
+        fields.email.value = "";
+        fields.password.value = "";
+        fields.password.required = true;
+        fields.role.value = "FACULTY";
+        fields.enabled.checked = true;
+        deleteBtn.style.display = "none";
+        modal.classList.add("open");
+    }
+
+    function closeModal() { modal.classList.remove("open"); editingId = null; }
+
+    async function deleteUser(id) {
+        if (!confirm("Delete this user?")) return;
+        try {
+            await api(`/users/${id}`, { method: "DELETE" });
+            showAlert(alertContainer.id, "success", "User deleted");
+            load();
+        } catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to delete user"); }
+    }
+
+    if (form) {
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                username: fields.username.value.trim(),
+                fullName: fields.fullName.value.trim(),
+                email: fields.email.value.trim(),
+                role: fields.role.value,
+                enabled: fields.enabled.checked
+            };
+            if (fields.password.value) payload.password = fields.password.value;
+            try {
+                if (editingId) await api(`/users/${editingId}`, { method: "PUT", body: JSON.stringify(payload) });
+                else await api("/users", { method: "POST", body: JSON.stringify(payload) });
+                showAlert(alertContainer.id, "success", editingId ? "User updated" : "User created");
+                closeModal();
+                load();
+            } catch (err) { showAlert(alertContainer.id, "error", err.message || "Failed to save user"); }
+        };
+    }
+
+    const addBtn = document.getElementById("btn-add-user");
+    if (addBtn) addBtn.onclick = openAdd;
+    const userSaveBtn = document.querySelector('button[form="user-form"]');
+    if (userSaveBtn) userSaveBtn.onclick = (e) => { e.preventDefault(); if (form) form.requestSubmit(); };
+    const cancelBtn = document.getElementById("user-modal-cancel");
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (modal) modal.querySelector(".modal-close").onclick = closeModal;
+    if (deleteBtn) deleteBtn.onclick = () => { if (editingId) deleteUser(editingId); closeModal(); };
+
     load();
 }
-window.editUser = () => {};
-
-function escapeJs(s) { return String(s == null ? "" : s).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n"); }
 
 // ---------------- Boot ----------------
 document.addEventListener("DOMContentLoaded", async () => {
     await initCsrf();
-    await loadCurrentUser();
     const page = document.body.dataset.page;
+    if (page !== "login" && page !== "403") {
+        await loadCurrentUser();
+    }
     if (page === "dashboard") initDashboard();
     else if (page === "students") initStudents();
     else if (page === "courses") initCourses();

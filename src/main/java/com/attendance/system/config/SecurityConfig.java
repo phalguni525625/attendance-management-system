@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -15,12 +16,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
@@ -56,15 +60,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(requestHandler)
-                .ignoringRequestMatchers("/api/csrf-token", "/error")
-            )
-            .sessionManagement(sm -> sm
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .sessionFixation().changeSessionId()
-                .maximumSessions(1)
+                .ignoringRequestMatchers("/api/auth/csrf-token", "/error")
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login", "/api/auth/**", "/api/csrf-token", "/css/**", "/js/**").permitAll()
+                .requestMatchers("/login").permitAll()
+                .requestMatchers("/", "/api/auth/csrf-token", "/error", "/css/**", "/js/**").permitAll()
+                .requestMatchers("/api/auth/me").authenticated()
+                .requestMatchers("/403").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/faculty/**").hasAnyRole("FACULTY", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/faculty/**").hasRole("ADMIN")
@@ -77,8 +79,8 @@ public class SecurityConfig {
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/api/auth/login")
-                .successForwardUrl("/dashboard")
-                .failureForwardUrl("/login?error")
+                .successHandler(new SimpleUrlAuthenticationSuccessHandler("/dashboard"))
+                .failureHandler(new SimpleUrlAuthenticationFailureHandler("/login?error"))
                 .usernameParameter("username")
                 .passwordParameter("password")
                 .permitAll()

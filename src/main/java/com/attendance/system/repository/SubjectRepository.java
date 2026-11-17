@@ -70,6 +70,11 @@ public class SubjectRepository {
         return jdbc.queryForObject(sql, Integer.class, code, excludeId) > 0;
     }
 
+    public boolean existsByCourseCode(String courseCode) {
+        String sql = "SELECT COUNT(1) FROM subjects WHERE course_code = ?";
+        return jdbc.queryForObject(sql, Integer.class, courseCode) > 0;
+    }
+
     public Long save(Subject subject) {
         String sql = "INSERT INTO subjects (code, name, course_code, semester, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())";
         KeyHolder keyHolder = new GeneratedKeyHolder();

@@ -1,13 +1,33 @@
 package com.attendance.system.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class AttendanceSessionDto {
 
     private Long id;
+
+    @NotBlank(message = "Course is required")
+    @Size(max = 20, message = "Course code must not exceed 20 characters")
     private String courseCode;
+
+    @NotBlank(message = "Subject is required")
+    @Size(max = 20, message = "Subject code must not exceed 20 characters")
     private String subjectCode;
+
+    @NotBlank(message = "Semester is required")
+    @Size(max = 20, message = "Semester must not exceed 20 characters")
     private String semester;
+
+    @NotBlank(message = "Section is required")
+    @Size(max = 20, message = "Section must not exceed 20 characters")
     private String section;
+
+    @NotBlank(message = "Date is required")
+    @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}", message = "Date must be in yyyy-MM-dd format")
     private String sessionDate;
+
     private String createdBy;
     private String createdAt;
     private String status;

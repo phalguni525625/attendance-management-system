@@ -25,13 +25,13 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<User>> list(@AuthenticationPrincipal CustomUserDetails user) {
         return ApiResponse.ok(userService.findAll());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<User> get(@PathVariable Long id) {
         return userService.findById(id)
             .map(ApiResponse::ok)

@@ -271,3 +271,10 @@ tr:hover td { background: #f8fafc; }
     .toolbar { flex-direction: column; align-items: stretch; }
     .search-box input { width: 100%; }
 }
+
+/* Role-based visibility: faculty cannot see admin-only create/edit/delete controls. */
+body:not(.role-admin) .btn-icon,
+body:not(.role-admin) .admin-action,
+body:not(.role-admin) [data-admin-only] {
+    display: none !important;
+}

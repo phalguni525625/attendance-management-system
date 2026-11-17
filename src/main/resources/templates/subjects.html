@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments :: head(~{title})">Subjects</head>
+<head th:replace="~{fragments :: head(title='Subjects')}">Subjects</head>
 <body th:attr="data-page='subjects'">
-    <th:block th:replace="fragments :: sidebar"></th:block>
-    <th:block th:replace="fragments :: topbar"></th:block>
-    <th:block th:replace="fragments :: scripts"></th:block>
+    <th:block th:replace="~{fragments :: sidebar}"></th:block>
+    <th:block th:replace="~{fragments :: topbar(user=${user}, role=${role})}"></th:block>
+    <th:block th:replace="~{fragments :: scripts}"></th:block>
     <div class="main">
         <header class="topbar" style="height:auto;border-bottom:none;padding:1rem 1.5rem;">
             <div class="page-header">
@@ -15,7 +15,7 @@
         <div class="page">
             <div id="alert-subjects"></div>
             <div class="toolbar">
-                <button class="btn btn-primary" id="btn-add-subject">&#128224; Add Subject</button>
+                <button class="btn btn-primary" id="btn-add-subject" data-admin-only="true">&#128224; Add Subject</button>
                 <span data-admin-only="true" style="font-size:0.85rem;color:var(--text-muted);">Admin only</span>
             </div>
             <div class="table-wrap">

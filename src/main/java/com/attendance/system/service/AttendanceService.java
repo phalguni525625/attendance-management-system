@@ -7,15 +7,19 @@ import com.attendance.system.dto.StudentAttendanceSummary;
 import com.attendance.system.model.AttendanceRecord;
 import com.attendance.system.model.AttendanceSession;
 import com.attendance.system.model.AttendanceStatus;
+import com.attendance.system.model.Course;
 import com.attendance.system.model.Student;
+import com.attendance.system.model.Subject;
 import com.attendance.system.repository.AttendanceRecordRepository;
 import com.attendance.system.repository.AttendanceSessionRepository;
+import com.attendance.system.repository.CourseRepository;
 import com.attendance.system.repository.StudentRepository;
+import com.attendance.system.repository.SubjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,15 +33,21 @@ public class AttendanceService {
     private final AttendanceSessionRepository sessionRepository;
     private final AttendanceRecordRepository recordRepository;
     private final StudentRepository studentRepository;
+    private final CourseRepository courseRepository;
+    private final SubjectRepository subjectRepository;
     private final SettingsService settingsService;
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
                              AttendanceRecordRepository recordRepository,
                              StudentRepository studentRepository,
+                             CourseRepository courseRepository,
+                             SubjectRepository subjectRepository,
                              SettingsService settingsService) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.studentRepository = studentRepository;
+        this.courseRepository = courseRepository;
+        this.subjectRepository = subjectRepository;
         this.settingsService = settingsService;
     }
 
@@ -47,11 +57,43 @@ public class AttendanceService {
             .stream().map(this::toDto).collect(Collectors.toList());
     }
 
+    @Transactional
     public AttendanceSessionDto createSession(AttendanceSessionDto dto, String createdBy) {
-        LocalDate date = LocalDate.parse(dto.getSessionDate());
+        if (dto == null) {
+            throw new IllegalArgumentException("Attendance session data is required");
+        }
+        if (dto.getSessionDate() == null || dto.getSessionDate().isBlank()) {
+            throw new IllegalArgumentException("Session date is required");
+        }
+
+        LocalDate date;
+        try {
+            date = LocalDate.parse(dto.getSessionDate());
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid session date. Expected yyyy-MM-dd.");
+        }
         if (date.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("Session date cannot be in the future");
         }
+
+        Optional<Course> course = courseRepository.findByCode(dto.getCourseCode());
+        if (course.isEmpty()) {
+            throw new IllegalArgumentException("Course not found: " + dto.getCourseCode());
+        }
+        Optional<Subject> subject = subjectRepository.findByCode(dto.getSubjectCode());
+        if (subject.isEmpty()) {
+            throw new IllegalArgumentException("Subject not found: " + dto.getSubjectCode());
+        }
+        if (!dto.getCourseCode().equals(subject.get().getCourseCode())) {
+            throw new IllegalArgumentException("Subject " + dto.getSubjectCode()
+                + " does not belong to course " + dto.getCourseCode());
+        }
+        if (!dto.getSemester().equals(subject.get().getSemester())) {
+            throw new IllegalArgumentException("Subject " + dto.getSubjectCode()
+                + " belongs to semester " + subject.get().getSemester()
+                + ", not " + dto.getSemester());
+        }
+
         Optional<AttendanceSession> existing = sessionRepository.findByCourseSubjectDateSection(
             dto.getCourseCode(), dto.getSubjectCode(), dto.getSemester(), dto.getSection(), date);
         if (existing.isPresent()) {
@@ -59,11 +101,8 @@ public class AttendanceService {
                 dto.getSubjectCode() + " on " + dto.getSessionDate() + " (" + dto.getSection() + ")");
         }
 
-        List<Student> students = studentRepository.findAll().stream()
-            .filter(s -> dto.getCourseCode().equals(s.getCourse())
-                && dto.getSemester().equals(s.getSemester())
-                && dto.getSection().equals(s.getSection()))
-            .collect(Collectors.toList());
+        List<Student> students = studentRepository.findByCourseSemesterSection(
+            dto.getCourseCode(), dto.getSemester(), dto.getSection());
 
         AttendanceSession session = new AttendanceSession();
         session.setCourseCode(dto.getCourseCode());
@@ -73,9 +112,8 @@ public class AttendanceService {
         session.setSessionDate(dto.getSessionDate());
         session.setCreatedBy(createdBy);
         Long sessionId = sessionRepository.save(session);
-
-        if (students.isEmpty()) {
-            return toDto(sessionRepository.findById(sessionId).orElseThrow());
+        if (sessionId == null) {
+            throw new IllegalStateException("Could not create attendance session");
         }
 
         List<AttendanceRecord> records = new ArrayList<>();
@@ -108,12 +146,19 @@ public class AttendanceService {
 
     @Transactional
     public List<AttendanceRecordDto> markAttendance(Long sessionId, List<AttendanceMarkDto> marks, String updatedBy) {
-        if (!sessionRepository.findById(sessionId).isPresent()) {
-            throw new IllegalArgumentException("Session not found: " + sessionId);
-        }
+        AttendanceSession session = sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         if (marks == null || marks.isEmpty()) {
             throw new IllegalArgumentException("No attendance records provided");
         }
+
+        List<Student> roster = studentRepository.findByCourseSemesterSection(
+            session.getCourseCode(), session.getSemester(), session.getSection());
+        Map<String, Student> rosterMap = new HashMap<>();
+        for (Student s : roster) {
+            rosterMap.put(s.getStudentId(), s);
+        }
+
         List<AttendanceRecordDto> result = new ArrayList<>();
         for (AttendanceMarkDto m : marks) {
             if (m.getStudentId() == null || m.getStudentId().isBlank()) {
@@ -122,21 +167,32 @@ public class AttendanceService {
             if (m.getStatus() == null) {
                 throw new IllegalArgumentException("Status is required for student " + m.getStudentId());
             }
+            Student rosterStudent = rosterMap.get(m.getStudentId());
+            if (rosterStudent == null) {
+                throw new IllegalArgumentException("Student " + m.getStudentId()
+                    + " is not enrolled in this course/semester/section");
+            }
+
             AttendanceStatus status = m.getStatus();
             Optional<AttendanceRecord> existing = recordRepository.findBySessionAndStudent(sessionId, m.getStudentId());
+            String studentName = rosterStudent.getName();
             if (existing.isPresent()) {
                 recordRepository.update(sessionId, m.getStudentId(), status, updatedBy);
+                AttendanceRecord updated = existing.get();
+                updated.setStatus(status);
+                updated.setUpdatedBy(updatedBy);
+                result.add(toRecordDto(updated));
             } else {
                 AttendanceRecord r = new AttendanceRecord();
                 r.setSessionId(sessionId);
                 r.setStudentId(m.getStudentId());
-                r.setStudentName(m.getStudentName());
+                r.setStudentName(studentName);
                 r.setStatus(status);
                 r.setUpdatedBy(updatedBy);
-                recordRepository.save(r);
+                Long id = recordRepository.save(r);
+                r.setId(id);
+                result.add(toRecordDto(r));
             }
-            result.add(toRecordDto(new AttendanceRecord(null, sessionId, m.getStudentId(),
-                m.getStudentName(), status, updatedBy, null)));
         }
         return result;
     }
@@ -149,23 +205,22 @@ public class AttendanceService {
     }
 
     public List<StudentAttendanceSummary> allStudentSummaries() {
-        Integer threshold = settingsService.getAttendanceThreshold();
+        int threshold = settingsService.getAttendanceThreshold();
         List<Student> students = studentRepository.findAll();
+        Map<String, List<AttendanceRecord>> byStudent = recordRepository.findAllActive().stream()
+            .collect(Collectors.groupingBy(AttendanceRecord::getStudentId));
+
         List<StudentAttendanceSummary> summaries = new ArrayList<>();
         for (Student s : students) {
-            summaries.add(summaryForStudent(s.getStudentId(), threshold));
+            List<AttendanceRecord> mine = byStudent.getOrDefault(s.getStudentId(), List.of());
+            summaries.add(summaryForStudent(s.getStudentId(), mine, threshold));
         }
         return summaries;
     }
 
-    private StudentAttendanceSummary summaryForStudent(String studentId, Integer threshold) {
-        List<AttendanceRecord> all = recordRepository.findAll();
-        List<AttendanceRecord> mine = all.stream()
-            .filter(r -> studentId.equals(r.getStudentId()))
-            .collect(Collectors.toList());
-
-        long total = mine.size();
-        long present = mine.stream().filter(r -> r.getStatus() == AttendanceStatus.PRESENT).count();
+    private StudentAttendanceSummary summaryForStudent(String studentId, List<AttendanceRecord> records, int threshold) {
+        long total = records.size();
+        long present = records.stream().filter(r -> r.getStatus() == AttendanceStatus.PRESENT).count();
         double percentage = total == 0 ? 0.0 : (present * 100.0) / total;
         int shortage = total == 0 ? 0 : Math.max(0, (int) Math.ceil(threshold * total / 100.0) - (int) present);
         boolean belowThreshold = total > 0 && percentage < threshold;
@@ -183,10 +238,22 @@ public class AttendanceService {
     }
 
     public List<StudentAttendanceSummary> defaulters() {
-        Integer threshold = settingsService.getAttendanceThreshold();
         return allStudentSummaries().stream()
             .filter(s -> s.getTotalSessions() > 0 && s.isBelowThreshold())
             .collect(Collectors.toList());
+    }
+
+    public long countActiveSessions() {
+        return sessionRepository.countActive();
+    }
+
+    public long countActiveRecords() {
+        return recordRepository.findAllActive().size();
+    }
+
+    public long countPresentRecords() {
+        return recordRepository.findAllActive().stream()
+            .filter(r -> r.getStatus() == AttendanceStatus.PRESENT).count();
     }
 
     private AttendanceSessionDto toDto(AttendanceSession s) {

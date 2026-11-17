@@ -31,8 +31,8 @@ public class ReportService {
 
     public List<ReportRow> studentWise(String studentId, String courseCode, String subjectCode,
                                        String startDate, String endDate) {
-        List<com.attendance.system.model.AttendanceRecord> records = recordRepository.findAll();
-        List<com.attendance.system.model.AttendanceSession> sessions = sessionRepository.findAll();
+        List<com.attendance.system.model.AttendanceRecord> records = recordRepository.findAllActive();
+        List<com.attendance.system.model.AttendanceSession> sessions = sessionRepository.findAllActive();
         Map<Long, com.attendance.system.model.AttendanceSession> sessionMap = sessions.stream()
             .collect(Collectors.toMap(com.attendance.system.model.AttendanceSession::getId, s -> s));
 
@@ -53,8 +53,8 @@ public class ReportService {
 
     public List<ReportRow> subjectWise(String subjectCode, String courseCode, String semester,
                                        String section, String startDate, String endDate) {
-        List<com.attendance.system.model.AttendanceRecord> records = recordRepository.findAll();
-        List<com.attendance.system.model.AttendanceSession> sessions = sessionRepository.findAll();
+        List<com.attendance.system.model.AttendanceRecord> records = recordRepository.findAllActive();
+        List<com.attendance.system.model.AttendanceSession> sessions = sessionRepository.findAllActive();
         Map<Long, com.attendance.system.model.AttendanceSession> sessionMap = sessions.stream()
             .collect(Collectors.toMap(com.attendance.system.model.AttendanceSession::getId, s -> s));
 
@@ -75,7 +75,7 @@ public class ReportService {
     }
 
     public List<AttendanceSessionDto> sessionsByDateRange(String startDate, String endDate) {
-        return sessionRepository.findAll().stream()
+        return sessionRepository.findAllActive().stream()
             .filter(s -> (startDate == null || s.getSessionDate().compareTo(startDate) >= 0)
                 && (endDate == null || s.getSessionDate().compareTo(endDate) <= 0))
             .map(s -> {

@@ -5,6 +5,7 @@
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title th:text="${title} ? ${title} : 'Attendance Management System'">Attendance Management System</title>
+        <link rel="icon" href="data:,"/>
         <link th:rel="stylesheet" th:href="@{/css/style.css}"/>
     </th:block>
 </head>
@@ -14,7 +15,7 @@
     </th:block>
 
     <th:block th:fragment="sidebar">
-        <nav class="sidebar" data-admin-only="true">
+        <nav class="sidebar">
             <div class="sidebar-header">Attendance</div>
             <nav>
                 <ul>
@@ -24,9 +25,9 @@
                     <li><a class="nav-link" th:class="${page == 'subjects'} ? 'active' : ''" th:href="@{/subjects}" data-page="subjects">&#128218; Subjects</a></li>
                     <li><a class="nav-link" th:class="${page == 'attendance'} ? 'active' : ''" th:href="@{/attendance}" data-page="attendance">&#128197; Attendance</a></li>
                     <li><a class="nav-link" th:class="${page == 'reports'} ? 'active' : ''" th:href="@{/reports}" data-page="reports">&#128202; Reports</a></li>
-                    <li><a class="nav-link" th:class="${page == 'users'} ? 'active' : ''" th:href="@{/users}" data-page="users">&#128105; Users</a></li>
-                    <li><a class="nav-link" th:class="${page == 'settings'} ? 'active' : ''" th:href="@{/settings}" data-page="settings">&#128271; Settings</a></li>
-                    <li><a class="nav-link" th:href="@{/profile}" data-page="profile">&#128100; Profile</a></li>
+                    <li data-admin-only="true"><a class="nav-link" th:class="${page == 'users'} ? 'active' : ''" th:href="@{/users}" data-page="users">&#128105; Users</a></li>
+                    <li data-admin-only="true"><a class="nav-link" th:class="${page == 'settings'} ? 'active' : ''" th:href="@{/settings}" data-page="settings">&#128271; Settings</a></li>
+                    <li><a class="nav-link" th:class="${page == 'profile'} ? 'active' : ''" th:href="@{/profile}" data-page="profile">&#128100; Profile</a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
